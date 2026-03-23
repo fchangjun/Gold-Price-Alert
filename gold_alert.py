@@ -19,6 +19,8 @@ DEFAULT_CONFIG_FILE = "config.json"
 DEFAULT_FX_SOURCE_URL = "https://stooq.com/q/l/?s=usdcny&i=1"
 DEFAULT_BEEP_SOUND = "Ping"
 TROY_OUNCE_TO_GRAMS = 31.1034768
+IS_MACOS = sys.platform == "darwin"
+IS_WINDOWS = sys.platform == "win32"
 
 
 @dataclass
@@ -112,17 +114,17 @@ def parse_args() -> argparse.Namespace:
         "--notify-mode",
         choices=["notification", "dialog", "both"],
         default=None,
-        help="Local Mac reminder mode. Default: notification",
+        help="Local reminder mode. Default: notification",
     )
     parser.add_argument(
         "--beep",
         action="store_true",
-        help="Play a macOS alert sound when an alert is triggered.",
+        help="Play a local system sound when an alert is triggered.",
     )
     parser.add_argument(
         "--beep-sound",
         default=None,
-        help=f"macOS sound name in /System/Library/Sounds. Default: {DEFAULT_BEEP_SOUND}",
+        help=f"Local sound name. On macOS use /System/Library/Sounds. Default: {DEFAULT_BEEP_SOUND}",
     )
     parser.add_argument(
         "--usd-cny-rate",
@@ -155,14 +157,21 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def load_config(path: str | None) -> dict[str, Any]:
-    if not path:
-        default_path = Path.cwd() / DEFAULT_CONFIG_FILE
-        if not default_path.exists():
-            return {}
-        config_path = default_path
-    else:
-        config_path = Path(path).expanduser()
+def resolve_config_path(path: str | None) -> Path | None:
+    if path:
+        return Path(path).expanduser()
+    default_path = Path.cwd() / DEFAULT_CONFIG_FILE
+    if default_path.exists():
+        return default_path
+    return None
+
+
+def load_config(path: str | Path | None) -> dict[str, Any]:
+    if path is None:
+        return {}
+    config_path = path if isinstance(path, Path) else resolve_config_path(path)
+    if config_path is None:
+        return {}
 
     with config_path.open("r", encoding="utf-8") as fh:
         data = json.load(fh)
@@ -337,6 +346,33 @@ def save_state(path: Path, state: dict[str, Any]) -> None:
         json.dump(state, fh, ensure_ascii=False, indent=2)
 
 
+def get_file_mtime(path: Path | None) -> float | None:
+    if path is None or not path.exists():
+        return None
+    return path.stat().st_mtime
+
+
+def maybe_reload_settings(
+    args: argparse.Namespace,
+    current_settings: Settings,
+    current_config_path: Path | None,
+    last_config_mtime: float | None,
+) -> tuple[Settings, Path | None, float | None, bool]:
+    config_path = current_config_path or resolve_config_path(args.config)
+    if config_path is None:
+        return current_settings, None, None, False
+
+    config_mtime = get_file_mtime(config_path)
+    if config_mtime is None:
+        return current_settings, config_path, None, False
+    if last_config_mtime is not None and config_mtime == last_config_mtime:
+        return current_settings, config_path, last_config_mtime, False
+
+    config = load_config(config_path)
+    settings = build_settings(args, config)
+    return settings, config_path, config_mtime, True
+
+
 def run_osascript(script: str) -> None:
     result = subprocess.run(
         ["osascript", "-e", script],
@@ -346,6 +382,22 @@ def run_osascript(script: str) -> None:
     )
     if result.returncode != 0:
         stderr = result.stderr.strip() or "unknown osascript error"
+        raise OSError(stderr)
+
+
+def escape_powershell_single_quotes(text: str) -> str:
+    return text.replace("'", "''")
+
+
+def run_powershell(script: str) -> None:
+    result = subprocess.run(
+        ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", script],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        stderr = result.stderr.strip() or "unknown powershell error"
         raise OSError(stderr)
 
 
@@ -367,6 +419,37 @@ def send_macos_notification(settings: Settings, title: str, message: str) -> Non
         play_macos_sound(settings.beep_sound)
 
 
+def send_windows_notification(settings: Settings, title: str, message: str) -> None:
+    escaped_title = escape_powershell_single_quotes(title)
+    escaped_message = escape_powershell_single_quotes(message)
+
+    if settings.notify_mode in {"notification", "both"}:
+        run_powershell(
+            "$wshell = New-Object -ComObject WScript.Shell; "
+            f"$wshell.Popup('{escaped_message}', 10, '{escaped_title}', 64) | Out-Null"
+        )
+
+    if settings.notify_mode in {"dialog", "both"}:
+        run_powershell(
+            "Add-Type -AssemblyName PresentationFramework; "
+            f"[System.Windows.MessageBox]::Show('{escaped_message}', '{escaped_title}') | Out-Null"
+        )
+
+    if settings.beep:
+        play_windows_sound(settings.beep_sound)
+
+
+def send_local_notification(settings: Settings, title: str, message: str) -> None:
+    if IS_MACOS:
+        send_macos_notification(settings, title, message)
+        return
+    if IS_WINDOWS:
+        send_windows_notification(settings, title, message)
+        return
+    if settings.beep:
+        print("\a", end="", flush=True)
+
+
 def play_macos_sound(sound_name: str) -> None:
     sound_path = Path("/System/Library/Sounds") / f"{sound_name}.aiff"
     if sound_path.exists():
@@ -374,6 +457,23 @@ def play_macos_sound(sound_name: str) -> None:
         return
     # Fall back to the terminal bell if the configured sound does not exist.
     print("\a", end="", flush=True)
+
+
+def play_windows_sound(sound_name: str) -> None:
+    try:
+        import winsound
+
+        sound_aliases = {
+            "Ping": "SystemAsterisk",
+            "Glass": "SystemExclamation",
+            "Hero": "SystemExit",
+            "Funk": "SystemHand",
+            "Submarine": "SystemQuestion",
+        }
+        alias = sound_aliases.get(sound_name, "SystemAsterisk")
+        winsound.PlaySound(alias, winsound.SND_ALIAS | winsound.SND_ASYNC)
+    except Exception:
+        print("\a", end="", flush=True)
 
 
 def send_bark_notification(settings: Settings, title: str, body: str) -> None:
@@ -499,13 +599,28 @@ def format_log(
     )
 
 
-def run(settings: Settings) -> int:
+def run(args: argparse.Namespace, settings: Settings, config_path: Path | None) -> int:
     cached_fx_rate: float | None = None
     cached_fx_date: str | None = None
     last_fx_refresh_monotonic: float | None = None
+    last_config_mtime = get_file_mtime(config_path)
 
     while True:
         try:
+            settings, config_path, new_config_mtime, reloaded = maybe_reload_settings(
+                args,
+                settings,
+                config_path,
+                last_config_mtime,
+            )
+            if reloaded:
+                last_config_mtime = new_config_mtime
+                cached_fx_rate = None
+                cached_fx_date = None
+                last_fx_refresh_monotonic = None
+                now_text = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                print(f"[{now_text}] 已重新加载配置: {config_path}", flush=True)
+
             price, updated_at = fetch_price(settings.source_url)
             usd_cny_rate, fx_date, fx_source, last_fx_refresh_monotonic = resolve_fx_rate(
                 settings,
@@ -550,9 +665,9 @@ def run(settings: Settings) -> int:
                     f"数据时间: {updated_at}"
                 )
                 try:
-                    send_macos_notification(settings, settings.name, message)
+                    send_local_notification(settings, settings.name, message)
                 except OSError as exc:
-                    print(f"[{now_text}] Mac 通知失败: {exc}", file=sys.stderr, flush=True)
+                    print(f"[{now_text}] 本地通知失败: {exc}", file=sys.stderr, flush=True)
                 if settings.bark_key:
                     try:
                         send_bark_notification(settings, settings.name, message)
@@ -590,13 +705,14 @@ def run(settings: Settings) -> int:
 def main() -> int:
     args = parse_args()
     try:
-        config = load_config(args.config)
+        config_path = resolve_config_path(args.config)
+        config = load_config(config_path)
         settings = build_settings(args, config)
     except (OSError, ValueError) as exc:
         print(f"配置错误: {exc}", file=sys.stderr)
         return 2
 
-    return run(settings)
+    return run(args, settings, config_path)
 
 
 if __name__ == "__main__":

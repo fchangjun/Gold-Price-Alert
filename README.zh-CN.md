@@ -4,7 +4,7 @@
 
 一个轻量级 Python 工具，用来监听国际金价 `XAU/USD`，在价格到达你的目标值后发送提醒。
 
-这个项目适合在 macOS 上做个人金价提醒，也支持通过 Bark 推送到 iPhone。
+这个项目适合在 macOS 和 Windows 上做个人金价提醒，也支持通过 Bark 推送到 iPhone。
 
 推荐的 GitHub 仓库名：
 
@@ -16,14 +16,14 @@
 - 监听实时国际金价 `USD/oz`
 - 支持用 `USD/oz` 或 `RMB/g` 作为目标价
 - 自动把国际金价换算为 `RMB/g`
-- 支持 macOS 本地提醒：横幅、弹窗或两者同时
+- 支持 macOS 和 Windows 本地提醒
 - 可选 Bark 推送到 iPhone
 - 可选忽略命中缓存，命中即提醒
 - 不依赖第三方 Python 包
 
 ## 运行要求
 
-- macOS
+- macOS 或 Windows
 - Python 3.10 或更高版本
 - 网络连接
 - 如果要用 Bark 推送，需要 iPhone 上安装 Bark
@@ -79,7 +79,101 @@ cd gold-price-alert
 python3 gold_alert.py
 ```
 
-如果你准备发布到 GitHub，建议把 `config.example.json` 放进仓库，把你个人使用的 `config.json` 排除掉。
+如果你准备发布到 GitHub，建议把 `config.example.json` 放进仓库。如果 `config.json` 里包含个人密钥，发布前先清空敏感字段。
+
+## 开机自启动
+
+### macOS
+
+项目里已经提供了 `launchd/com.fchangjun.gold-price-alert.plist`。
+
+### 1. 安装启动项
+
+```bash
+mkdir -p ~/Library/LaunchAgents
+cp /Users/baba/Desktop/黄金/launchd/com.fchangjun.gold-price-alert.plist ~/Library/LaunchAgents/
+launchctl unload ~/Library/LaunchAgents/com.fchangjun.gold-price-alert.plist 2>/dev/null || true
+launchctl load ~/Library/LaunchAgents/com.fchangjun.gold-price-alert.plist
+```
+
+### 2. 立即启动
+
+```bash
+launchctl start com.fchangjun.gold-price-alert
+```
+
+### 3. 停止
+
+```bash
+launchctl stop com.fchangjun.gold-price-alert
+```
+
+### 4. 禁用并移除开机启动
+
+```bash
+launchctl unload ~/Library/LaunchAgents/com.fchangjun.gold-price-alert.plist
+rm ~/Library/LaunchAgents/com.fchangjun.gold-price-alert.plist
+```
+
+### Windows
+
+项目里已经提供了 `windows/start_gold_price_alert.bat`。
+
+你可以通过“任务计划程序”设置开机或登录后自动启动：
+
+1. 打开“任务计划程序”
+2. 新建任务
+3. 触发器选择“登录时”
+4. 操作选择“启动程序”
+5. 程序路径指向 `windows/start_gold_price_alert.bat`
+6. 保存
+
+也可以用 PowerShell 创建：
+
+```powershell
+$action = New-ScheduledTaskAction -Execute "C:\path\to\gold-price-alert\windows\start_gold_price_alert.bat"
+$trigger = New-ScheduledTaskTrigger -AtLogOn
+Register-ScheduledTask -TaskName "GoldPriceAlert" -Action $action -Trigger $trigger -Description "Start Gold Price Alert at logon"
+```
+
+## 查看日志
+
+默认日志会写到项目目录下：
+
+- `logs/gold-price-alert.log`
+- `logs/gold-price-alert.error.log`
+
+实时查看：
+
+```bash
+tail -f /Users/baba/Desktop/黄金/logs/gold-price-alert.log
+```
+
+错误日志：
+
+```bash
+tail -f /Users/baba/Desktop/黄金/logs/gold-price-alert.error.log
+```
+
+## 运行中修改 target
+
+现在脚本已经支持自动重载 `config.json`。
+
+你只需要修改：
+
+```json
+{
+  "target": 4800
+}
+```
+
+保存后，脚本会在下一次轮询时自动重新加载配置，不需要手动重启。
+
+日志里会看到类似输出：
+
+```text
+[2026-03-23 20:10:00] 已重新加载配置: /Users/baba/Desktop/黄金/config.json
+```
 
 ## 使用教程
 
@@ -181,8 +275,8 @@ python3 gold_alert.py --ignore-hit-cache
 - `bark_sound`：Bark 提示音名称
 - `bark_url`：点击 Bark 通知后打开的链接
 - `notify_mode`：本机提醒方式，支持 `notification`、`dialog`、`both`
-- `beep`：提醒时是否播放 macOS 系统提示音
-- `beep_sound`：系统提示音名称，例如 `Ping`、`Glass`、`Hero`
+- `beep`：提醒时是否播放系统提示音
+- `beep_sound`：提示音名称，例如 `Ping`、`Glass`、`Hero`
 - `use_live_fx`：是否启用实时 `USD/CNY`
 - `usd_cny_rate`：实时汇率失败时的手动兜底值
 - `fx_provider`：实时汇率解析器，目前支持 `stooq`、`frankfurter`
@@ -213,7 +307,7 @@ python3 gold_alert.py --ignore-hit-cache
 ## 开源前建议
 
 - 把 `config.example.json` 作为公开示例配置
-- 不要把带有个人 Bark Key 的 `config.json` 提交到公开仓库
+- 如果 `config.json` 里有个人字段，公开前先清空
 - 保持 `.gold_alert_state.json` 被忽略
 - 可以考虑补充截图或 GIF 演示提醒效果
 

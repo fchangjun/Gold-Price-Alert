@@ -4,7 +4,7 @@
 
 A lightweight Python tool that monitors the international gold price (`XAU/USD`) and sends alerts when your target is reached.
 
-This project is designed for personal price alerts on macOS, with optional Bark push notifications for iPhone.
+This project is designed for personal price alerts on macOS and Windows, with optional Bark push notifications for iPhone.
 
 Recommended GitHub repository name:
 
@@ -16,14 +16,14 @@ Recommended GitHub repository name:
 - Monitor live gold price in `USD/oz`
 - Compare target price in either `USD/oz` or `RMB/g`
 - Convert live price to `RMB/g` with live `USD/CNY`
-- macOS local alerts: notification, dialog, or both
+- Local alerts on macOS and Windows
 - Optional Bark push notifications
 - Optional repeated alerts by ignoring hit-cache
 - Zero third-party Python dependencies
 
 ## Requirements
 
-- macOS
+- macOS or Windows
 - Python 3.10+
 - Internet access
 - Optional: Bark app on iPhone if you want push notifications
@@ -79,7 +79,101 @@ cd gold-price-alert
 python3 gold_alert.py
 ```
 
-If you are publishing to GitHub, keep `config.example.json` in the repo and ignore your personal `config.json`.
+If you are publishing to GitHub, keep `config.example.json` in the repo. If your `config.json` contains personal keys, clear them before publishing.
+
+## Auto Start On Boot
+
+### macOS
+
+This project includes `launchd/com.fchangjun.gold-price-alert.plist`.
+
+### 1. Install the launch agent
+
+```bash
+mkdir -p ~/Library/LaunchAgents
+cp /Users/baba/Desktop/黄金/launchd/com.fchangjun.gold-price-alert.plist ~/Library/LaunchAgents/
+launchctl unload ~/Library/LaunchAgents/com.fchangjun.gold-price-alert.plist 2>/dev/null || true
+launchctl load ~/Library/LaunchAgents/com.fchangjun.gold-price-alert.plist
+```
+
+### 2. Start immediately
+
+```bash
+launchctl start com.fchangjun.gold-price-alert
+```
+
+### 3. Stop
+
+```bash
+launchctl stop com.fchangjun.gold-price-alert
+```
+
+### 4. Disable auto start
+
+```bash
+launchctl unload ~/Library/LaunchAgents/com.fchangjun.gold-price-alert.plist
+rm ~/Library/LaunchAgents/com.fchangjun.gold-price-alert.plist
+```
+
+### Windows
+
+This project includes `windows/start_gold_price_alert.bat`.
+
+You can create a startup task with Task Scheduler:
+
+1. Open Task Scheduler
+2. Create Task
+3. Trigger: `At log on`
+4. Action: `Start a program`
+5. Program/script: point to `windows/start_gold_price_alert.bat`
+6. Save
+
+You can also create it from PowerShell:
+
+```powershell
+$action = New-ScheduledTaskAction -Execute "C:\path\to\gold-price-alert\windows\start_gold_price_alert.bat"
+$trigger = New-ScheduledTaskTrigger -AtLogOn
+Register-ScheduledTask -TaskName "GoldPriceAlert" -Action $action -Trigger $trigger -Description "Start Gold Price Alert at logon"
+```
+
+## Logs
+
+Logs are written to:
+
+- `logs/gold-price-alert.log`
+- `logs/gold-price-alert.error.log`
+
+Watch the main log:
+
+```bash
+tail -f /Users/baba/Desktop/黄金/logs/gold-price-alert.log
+```
+
+Watch the error log:
+
+```bash
+tail -f /Users/baba/Desktop/黄金/logs/gold-price-alert.error.log
+```
+
+## Change Target Without Restarting
+
+The script now auto-reloads `config.json` when the file changes.
+
+For example:
+
+```json
+{
+  "target": 4800
+}
+```
+
+Save the file and the running process will reload the configuration on the next polling cycle.
+
+You will see a log line like:
+
+```text
+[2026-03-23 20:10:00] Reloaded config: /Users/baba/Desktop/黄金/config.json
+```
 
 ## Usage Guide
 
@@ -181,8 +275,8 @@ After this, each triggered alert will:
 - `bark_sound`: Bark sound name
 - `bark_url`: URL opened when tapping a Bark notification
 - `notify_mode`: `notification`, `dialog`, or `both`
-- `beep`: play terminal bell on alert
-- `beep_sound`: macOS sound name, for example `Ping`, `Glass`, `Hero`
+- `beep`: play a local system sound on alert
+- `beep_sound`: sound name, for example `Ping`, `Glass`, `Hero`
 - `use_live_fx`: enable live `USD/CNY`
 - `usd_cny_rate`: fallback manual exchange rate
 - `fx_provider`: live FX provider parser, currently `stooq` or `frankfurter`
@@ -213,7 +307,7 @@ The FX conversion is primarily for convenience. If the live FX lookup fails, the
 ## Suggested Open Source Cleanup Before Publishing
 
 - keep `config.example.json` as the public sample config
-- keep `config.json` out of the public repo if it contains personal Bark keys
+- clear personal values from `config.json` before publishing if needed
 - keep `.gold_alert_state.json` ignored
 - optionally add screenshots or GIFs of local alerts
 

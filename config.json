@@ -1,5 +1,5 @@
 {
-  "target": 5000,
+  "target": 4000,
   "target_unit": "usd_oz",
   "direction": "below",
   "interval": 10,
