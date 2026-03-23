@@ -33,7 +33,12 @@
 - `gold_alert.py`：主脚本
 - `config.json`：本地运行配置
 - `config.example.json`：示例配置，可用于开源发布
+- `assets/gold-price-alert-demo.png`：提醒弹窗和终端输出效果图
 - `.gold_alert_state.json`：运行时生成的状态文件，用于去重提醒
+
+## 效果图
+
+![Gold Price Alert 效果图](./assets/gold-price-alert-demo.png)
 
 ## 快速开始
 

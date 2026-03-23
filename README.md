@@ -33,7 +33,12 @@ Recommended GitHub repository name:
 - `gold_alert.py`: main script
 - `config.json`: local runtime config
 - `config.example.json`: example config for sharing or publishing
+- `assets/gold-price-alert-demo.png`: screenshot of the alert dialog and terminal output
 - `.gold_alert_state.json`: generated at runtime, used for de-duplication
+
+## Screenshot
+
+![Gold Price Alert Screenshot](./assets/gold-price-alert-demo.png)
 
 ## Quick Start
 
