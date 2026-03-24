@@ -24,7 +24,7 @@
 ## 运行要求
 
 - macOS 或 Windows
-- Python 3.10 或更高版本
+- Python 3.9 或更高版本
 - 网络连接
 - 如果要用 Bark 推送，需要 iPhone 上安装 Bark
 

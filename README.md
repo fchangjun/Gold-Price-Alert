@@ -24,7 +24,7 @@ Recommended GitHub repository name:
 ## Requirements
 
 - macOS or Windows
-- Python 3.10+
+- Python 3.9+
 - Internet access
 - Optional: Bark app on iPhone if you want push notifications
 

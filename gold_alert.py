@@ -7,7 +7,7 @@ import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Dict, Optional, Tuple, Union
 from urllib.error import URLError
 from urllib.parse import quote, urlencode
 from urllib.request import Request, urlopen
@@ -34,16 +34,16 @@ class Settings:
     state_file: Path
     once: bool
     ignore_hit_cache: bool
-    bark_key: str | None
+    bark_key: Optional[str]
     bark_server: str
     bark_group: str
-    bark_sound: str | None
-    bark_url: str | None
+    bark_sound: Optional[str]
+    bark_url: Optional[str]
     notify_mode: str
     beep: bool
     beep_sound: str
     use_live_fx: bool
-    usd_cny_rate: float | None
+    usd_cny_rate: Optional[float]
     fx_provider: str
     fx_source_url: str
     fx_refresh_interval: int
@@ -157,7 +157,7 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def resolve_config_path(path: str | None) -> Path | None:
+def resolve_config_path(path: Optional[str]) -> Optional[Path]:
     if path:
         return Path(path).expanduser()
     default_path = Path.cwd() / DEFAULT_CONFIG_FILE
@@ -166,7 +166,7 @@ def resolve_config_path(path: str | None) -> Path | None:
     return None
 
 
-def load_config(path: str | Path | None) -> dict[str, Any]:
+def load_config(path: Union[str, Path, None]) -> Dict[str, Any]:
     if path is None:
         return {}
     config_path = path if isinstance(path, Path) else resolve_config_path(path)
@@ -181,11 +181,11 @@ def load_config(path: str | Path | None) -> dict[str, Any]:
     return data
 
 
-def pick_value(cli_value: Any, config: dict[str, Any], key: str, default: Any = None) -> Any:
+def pick_value(cli_value: Any, config: Dict[str, Any], key: str, default: Any = None) -> Any:
     return cli_value if cli_value is not None else config.get(key, default)
 
 
-def build_settings(args: argparse.Namespace, config: dict[str, Any]) -> Settings:
+def build_settings(args: argparse.Namespace, config: Dict[str, Any]) -> Settings:
     target = pick_value(args.target, config, "target")
     target_unit = pick_value(args.target_unit, config, "target_unit", "usd_oz")
     direction = pick_value(args.direction, config, "direction")
@@ -252,7 +252,7 @@ def build_settings(args: argparse.Namespace, config: dict[str, Any]) -> Settings
     )
 
 
-def fetch_price(source_url: str) -> tuple[float, str]:
+def fetch_price(source_url: str) -> Tuple[float, str]:
     request = Request(
         source_url,
         headers={
@@ -270,7 +270,7 @@ def fetch_price(source_url: str) -> tuple[float, str]:
     return float(price), str(updated_at)
 
 
-def fetch_usd_cny_rate_from_frankfurter(source_url: str) -> tuple[float, str]:
+def fetch_usd_cny_rate_from_frankfurter(source_url: str) -> Tuple[float, str]:
     request = Request(
         source_url,
         headers={
@@ -290,7 +290,7 @@ def fetch_usd_cny_rate_from_frankfurter(source_url: str) -> tuple[float, str]:
     return rate, str(effective_date)
 
 
-def fetch_usd_cny_rate_from_stooq(source_url: str) -> tuple[float, str]:
+def fetch_usd_cny_rate_from_stooq(source_url: str) -> Tuple[float, str]:
     request = Request(
         source_url,
         headers={
@@ -316,7 +316,7 @@ def fetch_usd_cny_rate_from_stooq(source_url: str) -> tuple[float, str]:
     return rate, timestamp
 
 
-def should_alert(price: float, settings: Settings, usd_cny_rate: float | None) -> bool:
+def should_alert(price: float, settings: Settings, usd_cny_rate: Optional[float]) -> bool:
     comparable_price = get_comparable_price(price, settings, usd_cny_rate)
     if comparable_price is None:
         return False
@@ -325,7 +325,7 @@ def should_alert(price: float, settings: Settings, usd_cny_rate: float | None) -
     return comparable_price <= settings.target
 
 
-def load_state(path: Path) -> dict[str, Any]:
+def load_state(path: Path) -> Dict[str, Any]:
     if not path.exists():
         return {"condition_met": False}
 
@@ -340,13 +340,13 @@ def load_state(path: Path) -> dict[str, Any]:
     return {"condition_met": False}
 
 
-def save_state(path: Path, state: dict[str, Any]) -> None:
+def save_state(path: Path, state: Dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", encoding="utf-8") as fh:
         json.dump(state, fh, ensure_ascii=False, indent=2)
 
 
-def get_file_mtime(path: Path | None) -> float | None:
+def get_file_mtime(path: Optional[Path]) -> Optional[float]:
     if path is None or not path.exists():
         return None
     return path.stat().st_mtime
@@ -355,9 +355,9 @@ def get_file_mtime(path: Path | None) -> float | None:
 def maybe_reload_settings(
     args: argparse.Namespace,
     current_settings: Settings,
-    current_config_path: Path | None,
-    last_config_mtime: float | None,
-) -> tuple[Settings, Path | None, float | None, bool]:
+    current_config_path: Optional[Path],
+    last_config_mtime: Optional[float],
+) -> Tuple[Settings, Optional[Path], Optional[float], bool]:
     config_path = current_config_path or resolve_config_path(args.config)
     if config_path is None:
         return current_settings, None, None, False
@@ -487,7 +487,7 @@ def send_bark_notification(settings: Settings, title: str, body: str) -> None:
             quote(body, safe=""),
         ]
     )
-    params: dict[str, str] = {"group": settings.bark_group}
+    params: Dict[str, str] = {"group": settings.bark_group}
     if settings.bark_sound:
         params["sound"] = settings.bark_sound
     if settings.bark_url:
@@ -516,7 +516,11 @@ def convert_to_cny_per_gram(price_usd_per_oz: float, usd_cny_rate: float) -> flo
     return price_usd_per_oz * usd_cny_rate / TROY_OUNCE_TO_GRAMS
 
 
-def get_comparable_price(price_usd_per_oz: float, settings: Settings, usd_cny_rate: float | None) -> float | None:
+def get_comparable_price(
+    price_usd_per_oz: float,
+    settings: Settings,
+    usd_cny_rate: Optional[float],
+) -> Optional[float]:
     if settings.target_unit == "usd_oz":
         return price_usd_per_oz
     if usd_cny_rate is None:
@@ -526,10 +530,10 @@ def get_comparable_price(price_usd_per_oz: float, settings: Settings, usd_cny_ra
 
 def resolve_fx_rate(
     settings: Settings,
-    cached_rate: float | None,
-    cached_date: str | None,
-    last_refresh_monotonic: float | None,
-) -> tuple[float | None, str | None, str, float | None]:
+    cached_rate: Optional[float],
+    cached_date: Optional[str],
+    last_refresh_monotonic: Optional[float],
+) -> Tuple[Optional[float], Optional[str], str, Optional[float]]:
     if not settings.use_live_fx:
         return settings.usd_cny_rate, None, "manual", last_refresh_monotonic
 
@@ -557,7 +561,7 @@ def resolve_fx_rate(
         return None, None, "unavailable", last_refresh_monotonic
 
 
-def format_price_suffix(price: float, usd_cny_rate: float | None, fx_label: str) -> str:
+def format_price_suffix(price: float, usd_cny_rate: Optional[float], fx_label: str) -> str:
     if usd_cny_rate is None:
         return ""
     cny_per_gram = convert_to_cny_per_gram(price, usd_cny_rate)
@@ -570,7 +574,7 @@ def format_target(settings: Settings) -> str:
     return f"{settings.target:.2f} USD/oz"
 
 
-def format_target_suffix(settings: Settings, usd_cny_rate: float | None) -> str:
+def format_target_suffix(settings: Settings, usd_cny_rate: Optional[float]) -> str:
     if settings.target_unit != "usd_oz" or usd_cny_rate is None:
         return ""
     target_cny_per_gram = convert_to_cny_per_gram(settings.target, usd_cny_rate)
@@ -582,7 +586,7 @@ def format_log(
     price: float,
     settings: Settings,
     matched: bool,
-    usd_cny_rate: float | None,
+    usd_cny_rate: Optional[float],
     fx_label: str,
 ) -> str:
     status = "命中阈值" if matched else "未命中"
@@ -599,10 +603,10 @@ def format_log(
     )
 
 
-def run(args: argparse.Namespace, settings: Settings, config_path: Path | None) -> int:
-    cached_fx_rate: float | None = None
-    cached_fx_date: str | None = None
-    last_fx_refresh_monotonic: float | None = None
+def run(args: argparse.Namespace, settings: Settings, config_path: Optional[Path]) -> int:
+    cached_fx_rate: Optional[float] = None
+    cached_fx_date: Optional[str] = None
+    last_fx_refresh_monotonic: Optional[float] = None
     last_config_mtime = get_file_mtime(config_path)
 
     while True:
