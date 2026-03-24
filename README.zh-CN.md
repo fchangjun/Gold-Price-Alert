@@ -80,15 +80,16 @@ python3 gold_alert.py
 
 ### macOS
 
-项目里已经提供了 `./launchd/com.fchangjun.gold-price-alert.plist`。
+项目里已经提供了：
+
+- `./launchd/com.fchangjun.gold-price-alert.plist.template`
+- `./launchd/install_launchd.sh`
 
 ### 1. 安装启动项
 
 ```bash
-mkdir -p ~/Library/LaunchAgents
-cp ./launchd/com.fchangjun.gold-price-alert.plist ~/Library/LaunchAgents/
-launchctl unload ~/Library/LaunchAgents/com.fchangjun.gold-price-alert.plist 2>/dev/null || true
-launchctl load ~/Library/LaunchAgents/com.fchangjun.gold-price-alert.plist
+chmod +x ./launchd/install_launchd.sh
+./launchd/install_launchd.sh
 ```
 
 ### 2. 立即启动

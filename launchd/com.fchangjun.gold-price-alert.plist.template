@@ -7,12 +7,12 @@
 
     <key>ProgramArguments</key>
     <array>
-        <string>/opt/miniconda3/bin/python3</string>
-        <string>/Users/baba/Desktop/黄金/gold_alert.py</string>
+        <string>__PYTHON_PATH__</string>
+        <string>__PROJECT_DIR__/gold_alert.py</string>
     </array>
 
     <key>WorkingDirectory</key>
-    <string>/Users/baba/Desktop/黄金</string>
+    <string>__PROJECT_DIR__</string>
 
     <key>RunAtLoad</key>
     <true/>
@@ -21,9 +21,9 @@
     <true/>
 
     <key>StandardOutPath</key>
-    <string>/Users/baba/Desktop/黄金/logs/gold-price-alert.log</string>
+    <string>__PROJECT_DIR__/logs/gold-price-alert.log</string>
 
     <key>StandardErrorPath</key>
-    <string>/Users/baba/Desktop/黄金/logs/gold-price-alert.error.log</string>
+    <string>__PROJECT_DIR__/logs/gold-price-alert.error.log</string>
 </dict>
 </plist>

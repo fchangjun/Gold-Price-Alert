@@ -80,15 +80,16 @@ This repository includes both `config.json` and `config.example.json`. If your `
 
 ### macOS
 
-This project includes `./launchd/com.fchangjun.gold-price-alert.plist`.
+This project includes:
+
+- `./launchd/com.fchangjun.gold-price-alert.plist.template`
+- `./launchd/install_launchd.sh`
 
 ### 1. Install the launch agent
 
 ```bash
-mkdir -p ~/Library/LaunchAgents
-cp ./launchd/com.fchangjun.gold-price-alert.plist ~/Library/LaunchAgents/
-launchctl unload ~/Library/LaunchAgents/com.fchangjun.gold-price-alert.plist 2>/dev/null || true
-launchctl load ~/Library/LaunchAgents/com.fchangjun.gold-price-alert.plist
+chmod +x ./launchd/install_launchd.sh
+./launchd/install_launchd.sh
 ```
 
 ### 2. Start immediately

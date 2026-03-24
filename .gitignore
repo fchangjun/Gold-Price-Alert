@@ -1,2 +1,3 @@
 __pycache__/
 .gold_alert_state.json
+logs/
