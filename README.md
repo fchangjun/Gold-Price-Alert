@@ -6,11 +6,6 @@ A lightweight Python tool that monitors the international gold price (`XAU/USD`)
 
 This project is designed for personal price alerts on macOS and Windows, with optional Bark push notifications for iPhone.
 
-Recommended GitHub repository name:
-
-- `gold-price-alert`
-- `xau-price-alert`
-
 ## Features
 
 - Monitor live gold price in `USD/oz`
@@ -79,19 +74,19 @@ cd gold-price-alert
 python3 gold_alert.py
 ```
 
-If you are publishing to GitHub, keep `config.example.json` in the repo. If your `config.json` contains personal keys, clear them before publishing.
+This repository includes both `config.json` and `config.example.json`. If your `config.json` contains personal keys, clear them before publishing or sharing.
 
 ## Auto Start On Boot
 
 ### macOS
 
-This project includes `launchd/com.fchangjun.gold-price-alert.plist`.
+This project includes `./launchd/com.fchangjun.gold-price-alert.plist`.
 
 ### 1. Install the launch agent
 
 ```bash
 mkdir -p ~/Library/LaunchAgents
-cp /Users/baba/Desktop/黄金/launchd/com.fchangjun.gold-price-alert.plist ~/Library/LaunchAgents/
+cp ./launchd/com.fchangjun.gold-price-alert.plist ~/Library/LaunchAgents/
 launchctl unload ~/Library/LaunchAgents/com.fchangjun.gold-price-alert.plist 2>/dev/null || true
 launchctl load ~/Library/LaunchAgents/com.fchangjun.gold-price-alert.plist
 ```
@@ -146,13 +141,13 @@ Logs are written to:
 Watch the main log:
 
 ```bash
-tail -f /Users/baba/Desktop/黄金/logs/gold-price-alert.log
+tail -f ./logs/gold-price-alert.log
 ```
 
 Watch the error log:
 
 ```bash
-tail -f /Users/baba/Desktop/黄金/logs/gold-price-alert.error.log
+tail -f ./logs/gold-price-alert.error.log
 ```
 
 ## Change Target Without Restarting
@@ -172,7 +167,7 @@ Save the file and the running process will reload the configuration on the next 
 You will see a log line like:
 
 ```text
-[2026-03-23 20:10:00] Reloaded config: /Users/baba/Desktop/黄金/config.json
+[2026-03-23 20:10:00] Reloaded config: ./config.json
 ```
 
 ## Usage Guide

@@ -6,11 +6,6 @@
 
 这个项目适合在 macOS 和 Windows 上做个人金价提醒，也支持通过 Bark 推送到 iPhone。
 
-推荐的 GitHub 仓库名：
-
-- `gold-price-alert`
-- `xau-price-alert`
-
 ## 功能特性
 
 - 监听实时国际金价 `USD/oz`
@@ -79,19 +74,19 @@ cd gold-price-alert
 python3 gold_alert.py
 ```
 
-如果你准备发布到 GitHub，建议把 `config.example.json` 放进仓库。如果 `config.json` 里包含个人密钥，发布前先清空敏感字段。
+仓库里同时提供了 `config.json` 和 `config.example.json`。如果 `config.json` 里包含个人密钥，公开或分享前先清空敏感字段。
 
 ## 开机自启动
 
 ### macOS
 
-项目里已经提供了 `launchd/com.fchangjun.gold-price-alert.plist`。
+项目里已经提供了 `./launchd/com.fchangjun.gold-price-alert.plist`。
 
 ### 1. 安装启动项
 
 ```bash
 mkdir -p ~/Library/LaunchAgents
-cp /Users/baba/Desktop/黄金/launchd/com.fchangjun.gold-price-alert.plist ~/Library/LaunchAgents/
+cp ./launchd/com.fchangjun.gold-price-alert.plist ~/Library/LaunchAgents/
 launchctl unload ~/Library/LaunchAgents/com.fchangjun.gold-price-alert.plist 2>/dev/null || true
 launchctl load ~/Library/LaunchAgents/com.fchangjun.gold-price-alert.plist
 ```
@@ -146,13 +141,13 @@ Register-ScheduledTask -TaskName "GoldPriceAlert" -Action $action -Trigger $trig
 实时查看：
 
 ```bash
-tail -f /Users/baba/Desktop/黄金/logs/gold-price-alert.log
+tail -f ./logs/gold-price-alert.log
 ```
 
 错误日志：
 
 ```bash
-tail -f /Users/baba/Desktop/黄金/logs/gold-price-alert.error.log
+tail -f ./logs/gold-price-alert.error.log
 ```
 
 ## 运行中修改 target
@@ -172,7 +167,7 @@ tail -f /Users/baba/Desktop/黄金/logs/gold-price-alert.error.log
 日志里会看到类似输出：
 
 ```text
-[2026-03-23 20:10:00] 已重新加载配置: /Users/baba/Desktop/黄金/config.json
+[2026-03-23 20:10:00] 已重新加载配置: ./config.json
 ```
 
 ## 使用教程
